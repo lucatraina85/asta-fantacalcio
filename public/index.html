@@ -1,0 +1,131 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asta Fantacalcio Super Semplice</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 15px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, button { padding: 12px; font-size: 16px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:disabled { background-color: #cccccc; }
+        .btn-bid { background-color: #28a745; font-weight: bold; width: 28%; }
+        .btn-close { background-color: #dc3545; width: 100%; font-weight: bold; }
+        .timer { font-size: 40px; font-weight: bold; color: #ff4757; }
+        .bid-info { font-size: 24px; font-weight: bold; margin: 15px 0; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="card">
+        <h2>Inserisci il tuo Nome</h2>
+        <input type="text" id="username-input" placeholder="Es. Marco">
+        <button onclick="login()">Entra</button>
+    </div>
+
+    <div id="auction-screen" class="card hidden">
+        <h3 id="welcome-msg"></h3>
+        <p id="banditore-badge" style="color: #d9534f; font-weight: bold;"></p>
+
+        <div id="call-section">
+            <h4>Chiama un Calciatore</h4>
+            <input type="text" id="player-input" placeholder="Nome Calciatore">
+            <button onclick="startAuction()">Inizia Asta (1 cr)</button>
+        </div>
+
+        <hr>
+
+        <div id="active-auction" class="hidden">
+            <h1 id="player-name" style="color: #333;">---</h1>
+            <div class="timer" id="timer">10</div>
+            
+            <div class="bid-info">
+                Offerta: <span id="current-bid">0</span> cr<br>
+                Miglior offerente: <span id="highest-bidder" style="color: #007bff;">-</span>
+            </div>
+
+            <div>
+                <button class="btn-bid" onclick="bid(1)">+1</button>
+                <button class="btn-bid" onclick="bid(5)">+5</button>
+                <button class="btn-bid" onclick="bid(10)">+10</button>
+            </div>
+
+            <div id="banditore-controls" class="hidden" style="margin-top: 20px;">
+                <button class="btn-close" onclick="closeAuction()">🔨 AGGIUDICATO!</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myName = "";
+        let isBanditore = false;
+
+        function login() {
+            const input = document.getElementById('username-input').value.trim();
+            if (!input) return alert("Inserisci un nome valido");
+            myName = input;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('auction-screen').classList.remove('hidden');
+            document.getElementById('welcome-msg').innerText = "Partecipante: " + myName;
+        }
+
+        function startAuction() {
+            const playerName = document.getElementById('player-input').value.trim();
+            if (!playerName) return alert("Inserisci il nome di un calciatore");
+            socket.emit('startAuction', { playerName, userName: myName });
+            document.getElementById('player-input').value = "";
+        }
+
+        function bid(increment) {
+            socket.emit('placeBid', { increment, userName: myName });
+        }
+
+        function closeAuction() {
+            socket.emit('closeAuction');
+        }
+
+        socket.on('init', (data) => {
+            isBanditore = data.isBanditore;
+            if (isBanditore) {
+                document.getElementById('banditore-badge').innerText = "👑 Sei il Banditore dell'asta";
+            }
+            updateUI(data.state);
+        });
+
+        socket.on('stateUpdate', (state) => {
+            updateUI(state);
+        });
+
+        socket.on('timerTick', (time) => {
+            document.getElementById('timer').innerText = time;
+        });
+
+        socket.on('auctionClosed', (data) => {
+            alert(`🎉 AGGIUDICATO!\n\n${data.player} a ${data.winner} per${data.price} crediti!`);
+        });
+
+        function updateUI(state) {
+            if (state.currentPlayer) {
+                document.getElementById('call-section').classList.add('hidden');
+                document.getElementById('active-auction').classList.remove('hidden');
+                
+                document.getElementById('player-name').innerText = state.currentPlayer;
+                document.getElementById('current-bid').innerText = state.currentBid;
+                document.getElementById('highest-bidder').innerText = state.highestBidder;
+                document.getElementById('timer').innerText = state.timer;
+
+                if (isBanditore) {
+                    document.getElementById('banditore-controls').classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('call-section').classList.remove('hidden');
+                document.getElementById('active-auction').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
