@@ -12,7 +12,7 @@
         }
         html, body {
             height: 100%;
-            height: 100dvh; /* Altezza dinamica per cellulari */
+            height: 100dvh;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f4f4f9;
@@ -28,7 +28,7 @@
             max-width: 420px;
             height: 100%;
             background: white;
-            padding: 10px 14px;
+            padding: 12px 14px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             display: flex;
@@ -36,90 +36,78 @@
             justify-content: space-between;
         }
         h1 {
-            font-size: 20px;
+            font-size: 24px;
             color: #2c3e50;
             font-weight: 800;
-        }
-        .user-tag {
-            font-size: 13px;
-            color: #555;
             margin-bottom: 2px;
         }
-        .call-panel {
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+            color: #444;
+            margin-bottom: 6px;
             background: #eef2f7;
-            padding: 6px;
+            padding: 8px 12px;
             border-radius: 8px;
+            font-weight: 600;
+        }
+        .credits-badge {
+            font-weight: 800;
+            color: #27ae60;
+            font-size: 20px;
+        }
+        .call-panel {
             display: flex;
             gap: 6px;
         }
         .call-panel input {
             flex: 1;
-            padding: 8px 10px;
-            font-size: 15px;
-            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 18px;
+            border-radius: 8px;
             border: 1px solid #ccc;
             outline: none;
         }
         .player-title {
-            font-size: 26px;
-            font-weight: 800;
+            font-size: 32px;
+            font-weight: 900;
             color: #1a252f;
-            min-height: 32px;
+            min-height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
+            text-align: center;
             line-height: 1.1;
         }
-        .dots-container {
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-            margin: 4px 0 6px 0;
-        }
-        .dot {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background-color: #e74c3c;
-            transition: background-color 0.2s;
-        }
-        .dot.green {
-            background-color: #2ecc71;
-        }
-        .ready-btn {
-            font-size: 18px;
-            padding: 10px;
-            width: 100%;
-            border-radius: 8px;
-        }
         .timer {
-            font-size: 52px;
+            font-size: 85px;
             font-weight: 900;
             color: #e74c3c;
-            line-height: 1;
+            line-height: 0.9;
             margin: 2px 0;
         }
         .info-box {
-            font-size: 18px;
-            color: #333;
+            font-size: 20px;
+            color: #222;
             background: #f8f9fa;
-            padding: 8px;
+            padding: 10px;
             border-radius: 8px;
             border: 1px solid #eee;
+            font-weight: 600;
         }
         button {
-            padding: 8px 12px;
-            font-size: 15px;
-            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 16px;
+            border-radius: 8px;
             border: none;
             cursor: pointer;
             font-weight: bold;
             color: white;
             transition: opacity 0.15s;
         }
-        button:active {
-            opacity: 0.8;
-        }
+        button:active { opacity: 0.8; }
         button:disabled {
             background-color: #bdc3c7 !important;
             cursor: not-allowed;
@@ -127,22 +115,21 @@
         }
         .btn-green { background-color: #2ecc71; }
         .btn-blue { background-color: #3498db; }
-        .btn-orange { background-color: #f39c12; }
         .btn-red { background-color: #e74c3c; }
 
         .bid-buttons {
             display: flex;
             gap: 8px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         .bid-btn {
             flex: 1;
-            font-size: 22px;
-            font-weight: 800;
-            padding: 14px 0;
-            border-radius: 8px;
+            font-size: 28px;
+            font-weight: 900;
+            padding: 18px 0;
+            border-radius: 10px;
             background-color: #2ecc71;
-            box-shadow: 0 3px 0 #27ae60;
+            box-shadow: 0 4px 0 #27ae60;
         }
         .bid-btn:active {
             box-shadow: none;
@@ -155,38 +142,31 @@
         <div>
             <h1>Asta Fantacalcio</h1>
             <div id="loginSection" style="margin-top: 40px;">
-                <p style="margin-bottom: 12px; font-size: 16px;">Inserisci il tuo nome per entrare:</p>
-                <input type="text" id="userNameInput" placeholder="Il tuo nome" style="padding: 12px; font-size: 16px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc;">
-                <button class="btn-green" onclick="login()" style="width: 100%; font-size: 18px; padding: 12px;">Entra</button>
+                <p style="margin-bottom: 12px; font-size: 18px; font-weight: 600;">Inserisci il tuo nome per entrare:</p>
+                <input type="text" id="userNameInput" placeholder="Il tuo nome" style="padding: 14px; font-size: 18px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc;">
+                <button class="btn-green" onclick="login()" style="width: 100%; font-size: 20px; padding: 14px;">Entra</button>
             </div>
         </div>
 
         <div id="auctionSection" style="display: none; height: 100%; flex-direction: column; justify-content: space-between;">
             <div>
-                <div class="user-tag">Utente: <b id="displayName"></b></div>
+                <div class="header-bar">
+                    <span>Utente: <b id="displayName"></b></span>
+                    <span>Crediti: <span class="credits-badge" id="myCredits">500</span></span>
+                </div>
                 <div class="call-panel">
                     <input type="text" id="playerInput" placeholder="Nome Giocatore">
-                    <button class="btn-blue" onclick="callPlayer()">Chiama</button>
-                    <button class="btn-red" onclick="resetAuction()">X</button>
+                    <button class="btn-blue" onclick="callPlayer()" style="font-size: 18px;">Chiama</button>
+                    <button class="btn-red" onclick="resetAuction()" style="font-size: 18px;">X</button>
                 </div>
             </div>
 
             <div class="player-title" id="currentPlayer">In attesa...</div>
 
-            <div>
-                <p style="font-size: 13px; font-weight: bold; color: #666; margin-bottom: 2px;">Conferme Partecipanti:</p>
-                <div class="dots-container" id="dotsContainer">
-                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                </div>
-                <button id="readyButton" class="ready-btn btn-orange" onclick="sendReady()" disabled>👍 SONO PRONTO!</button>
-                <button class="btn-blue" onclick="forceStartAuction()" style="font-size: 11px; padding: 3px 8px; margin-top: 3px;">Forza Avvio Timer</button>
-            </div>
-
             <div class="timer" id="timer">5</div>
 
             <div class="info-box">
-                Offerta: <b id="currentBid" style="font-size: 24px; color: #2c3e50;">0</b> cr<br>
+                Offerta: <b id="currentBid" style="font-size: 30px; color: #2c3e50;">0</b> cr<br>
                 Offerente: <b id="highestBidder" style="color: #27ae60;">-</b>
             </div>
 
@@ -202,7 +182,6 @@
     <script>
         const socket = io();
         let myName = "";
-        let isUserReady = false;
 
         function login() {
             const name = document.getElementById('userNameInput').value.trim();
@@ -210,8 +189,7 @@
                 myName = name;
                 document.getElementById('displayName').innerText = myName;
                 document.getElementById('loginSection').style.display = 'none';
-                const auctionSec = document.getElementById('auctionSection');
-                auctionSec.style.display = 'flex';
+                document.getElementById('auctionSection').style.display = 'flex';
                 socket.emit('registerUser', myName);
             }
         }
@@ -222,16 +200,6 @@
                 socket.emit('callPlayer', player);
                 document.getElementById('playerInput').value = "";
             }
-        }
-
-        function forceStartAuction() {
-            socket.emit('forceStartAuction');
-        }
-
-        function sendReady() {
-            socket.emit('setUserReady');
-            isUserReady = true;
-            document.getElementById('readyButton').disabled = true;
         }
 
         function placeIncrementBid(increment) {
@@ -248,26 +216,10 @@
             document.getElementById('highestBidder').innerText = state.highestBidder || "-";
             document.getElementById('currentBid').innerText = state.currentBid;
 
-            // Aggiorna pallini
-            const dots = document.querySelectorAll('.dot');
-            dots.forEach((dot, index) => {
-                if (index < state.readyCount) {
-                    dot.classList.add('green');
-                } else {
-                    dot.classList.remove('green');
-                }
-            });
-
-            // Gestione pulsante PRONTO
-            const readyBtn = document.getElementById('readyButton');
-            if (state.currentPlayer !== "" && !state.isTimerRunning) {
-                readyBtn.disabled = isUserReady;
-            } else {
-                readyBtn.disabled = true;
-                if (state.currentPlayer === "") isUserReady = false;
+            if (state.userCredits && myName in state.userCredits) {
+                document.getElementById('myCredits').innerText = state.userCredits[myName];
             }
 
-            // Attiva / Disattiva i 3 pulsanti di rilancio
             const isBiddingActive = state.isTimerRunning && state.timer > 0;
             document.getElementById('bidBtn1').disabled = !isBiddingActive;
             document.getElementById('bidBtn5').disabled = !isBiddingActive;
@@ -275,12 +227,19 @@
         });
 
         socket.on('auctionEnded', (data) => {
-            isUserReady = false;
             if (data.winner !== "Nessuno") {
-                alert(`🎉 GIOCATORE AGGIUDICATO!\n\n${data.player} è stato acquistato da ${data.winner} per ${data.price} crediti!`);
+                alert(`🎉 GIOCATORE AGGIUDICATO!\n\n${data.player} a ${data.winner} per ${data.price} crediti!`);
             } else {
                 alert(`❌ Asta terminata per ${data.player}: nessun offerente.`);
             }
+
+            if (data.userCredits && myName in data.userCredits) {
+                document.getElementById('myCredits').innerText = data.userCredits[myName];
+            }
+        });
+
+        socket.on('errorMsg', (msg) => {
+            alert(msg);
         });
     </script>
 </body>
