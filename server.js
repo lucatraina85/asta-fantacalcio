@@ -1,6 +1,8 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -8,9 +10,54 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// Struttura dati per gestire più stanze in contemporanea
-// rooms = { "CodiceStanza": { auctionState, userCredits, lastTransaction, timerInterval } }
+const DB_FILE = path.join(__dirname, 'database.json');
+
+// Carica i dati dal file database.json all'avvio
 let rooms = {};
+
+function loadData() {
+    try {
+        if (fs.existsSync(DB_FILE)) {
+            const rawData = fs.readFileSync(DB_FILE, 'utf8');
+            const parsed = JSON.parse(rawData);
+            
+            // Ricostruiamo i Map dei crediti per ciascuna stanza
+            for (let code in parsed) {
+                rooms[code] = {
+                    auctionState: parsed[code].auctionState,
+                    userCredits: new Map(Object.entries(parsed[code].userCredits || {})),
+                    lastTransaction: parsed[code].lastTransaction,
+                    timerInterval: null
+                };
+                // Assicuriamoci che il timer sia fermo al caricamento
+                rooms[code].auctionState.isTimerRunning = false;
+            }
+            console.log('Dati caricati con successo da database.json');
+        }
+    } catch (err) {
+        console.error('Errore nel caricamento del database:', err);
+    }
+}
+
+// Salva lo stato delle stanze su file
+function saveData() {
+    try {
+        const toSave = {};
+        for (let code in rooms) {
+            toSave[code] = {
+                auctionState: rooms[code].auctionState,
+                userCredits: Object.fromEntries(rooms[code].userCredits),
+                lastTransaction: rooms[code].lastTransaction
+            };
+        }
+        fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), 'utf8');
+    } catch (err) {
+        console.error('Errore durante il salvataggio su database.json:', err);
+    }
+}
+
+// Carichiamo i dati subito
+loadData();
 
 function getOrCreateRoom(roomCode) {
     const code = roomCode.trim().toUpperCase();
@@ -27,6 +74,7 @@ function getOrCreateRoom(roomCode) {
             lastTransaction: null,
             timerInterval: null
         };
+        saveData();
     }
     return rooms[code];
 }
@@ -64,6 +112,8 @@ function startTimer(roomCode) {
             } else {
                 room.lastTransaction = null;
             }
+
+            saveData(); // Salviamo a fine asta
 
             io.to(roomCode).emit('auctionEnded', {
                 player: player,
@@ -109,6 +159,7 @@ io.on('connection', (socket) => {
 
         if (!room.userCredits.has(userName)) {
             room.userCredits.set(userName, 500);
+            saveData();
         }
 
         io.to(roomCode).emit('stateUpdate', getStateData(roomCode));
@@ -162,6 +213,7 @@ io.on('connection', (socket) => {
             room.auctionState.currentBid = 0;
             room.auctionState.timer = 5;
             room.auctionState.isTimerRunning = false;
+            saveData();
             io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         }
     });
@@ -172,6 +224,7 @@ io.on('connection', (socket) => {
         const room = rooms[currentRoom];
         if (room && room.userCredits.has(data.userName)) {
             room.userCredits.set(data.userName, parseInt(data.newCredits) || 0);
+            saveData();
             io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         }
     });
@@ -184,6 +237,7 @@ io.on('connection', (socket) => {
                 room.userCredits.set(user, 500);
             }
             room.lastTransaction = null;
+            saveData();
             io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         }
     });
@@ -199,6 +253,7 @@ io.on('connection', (socket) => {
             const undone = room.lastTransaction;
             room.lastTransaction = null;
 
+            saveData();
             io.to(currentRoom).emit('transactionUndone', undone);
             io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         } else {
