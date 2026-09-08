@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -42,7 +43,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 17px;
+            font-size: 15px;
             color: #333;
             background: #eef2f7;
             padding: 8px 12px;
@@ -52,7 +53,7 @@
         .credits-badge {
             font-weight: 900;
             color: #27ae60;
-            font-size: 22px;
+            font-size: 20px;
         }
         .call-panel {
             display: flex;
@@ -136,7 +137,6 @@
             transform: translateY(2px);
         }
 
-        /* Sezione Banditore Extra */
         .auctioneer-section {
             margin-top: 20px;
             padding-top: 16px;
@@ -173,26 +173,29 @@
     <div class="container">
         <div>
             <h1>Asta Fantacalcio</h1>
-            <div id="loginSection" style="margin-top: 40px;">
-                <p style="margin-bottom: 12px; font-size: 18px; font-weight: 700;">Inserisci il tuo nome per entrare:</p>
-                <input type="text" id="userNameInput" placeholder="Il tuo nome" style="padding: 14px; font-size: 18px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc;">
+            <div id="loginSection" style="margin-top: 20px;">
+                <p style="margin-bottom: 6px; font-size: 16px; font-weight: 700;">Nome Stanza / Lega:</p>
+                <input type="text" id="roomInput" placeholder="Es: lega1, asta-amici" style="padding: 12px; font-size: 18px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc; text-transform: uppercase;">
+
+                <p style="margin-bottom: 6px; font-size: 16px; font-weight: 700;">Il tuo nome:</p>
+                <input type="text" id="userNameInput" placeholder="Es: Marco" style="padding: 12px; font-size: 18px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc;">
                 
                 <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="isAuctioneer" style="width: 20px; height: 20px;">
-                    <label for="isAuctioneer" style="font-size: 16px; font-weight: 700; color: #d35400;">Sono il Banditore (Pannello Admin)</label>
+                    <label for="isAuctioneer" style="font-size: 16px; font-weight: 700; color: #d35400;">Sono il Banditore</label>
                 </div>
 
-                <button class="btn-green" onclick="login()" style="width: 100%; font-size: 20px; padding: 14px;">Entra</button>
+                <button class="btn-green" onclick="login()" style="width: 100%; font-size: 20px; padding: 14px;">Entra nella Stanza</button>
             </div>
         </div>
 
         <div id="auctionSection" style="display: none; flex-direction: column; gap: 12px;">
             <div>
                 <div class="header-bar">
-                    <span>Utente: <b id="displayName"></b> <span id="adminTag" style="color:#d35400; font-size:12px; display:none;">(Banditore)</span></span>
+                    <span>Stanza: <b id="displayRoom" style="color:#3498db;"></b> | <b id="displayName"></b></span>
                     <span>Crediti: <span class="credits-badge" id="myCredits">500</span></span>
                 </div>
-                <div class="call-panel">
+                <div class="call-panel" style="margin-top: 8px;">
                     <input type="text" id="playerInput" placeholder="Nome Giocatore">
                     <button class="btn-blue" onclick="callPlayer()" style="font-size: 17px;">Chiama</button>
                     <button class="btn-red" onclick="resetAuction()" style="font-size: 17px; padding: 10px 14px;">X</button>
@@ -214,7 +217,7 @@
                 <button class="bid-btn" onclick="placeIncrementBid(10)" id="bidBtn10" disabled>+10</button>
             </div>
 
-            <!-- CONTROLLI BANDITORE (Visibili solo se loggato come Banditore scorrendo la pagina) -->
+            <!-- CONTROLLI BANDITORE -->
             <div id="auctioneerPanel" class="auctioneer-section" style="display: none;">
                 <div class="auctioneer-title">👑 Pannello Gestione Banditore</div>
                 
@@ -222,10 +225,8 @@
                     ↩️ Annulla Ultimo Acquisto
                 </button>
 
-                <p style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">Crediti Partecipanti:</p>
-                <div id="usersCreditsList" style="margin-bottom: 12px;">
-                    <!-- Lista dinamica utenti e crediti -->
-                </div>
+                <p style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">Crediti Partecipanti Stanza:</p>
+                <div id="usersCreditsList" style="margin-bottom: 12px;"></div>
 
                 <button class="btn-red" onclick="resetAllCredits()" style="width: 100%; font-size: 15px;">
                     ⚠️ Reset Crediti TUTTI a 500
@@ -238,24 +239,49 @@
     <script>
         const socket = io();
         let myName = "";
+        let currentRoomCode = "";
         let isAuctioneer = false;
+        let wakeLock = null;
+
+        // --- GESTIONE WAKE LOCK (SCHERMO SEMPRE ACCESO) ---
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+            }
+        }
+
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
 
         function login() {
+            const room = document.getElementById('roomInput').value.trim().toUpperCase() || "GENERALE";
             const name = document.getElementById('userNameInput').value.trim();
             isAuctioneer = document.getElementById('isAuctioneer').checked;
 
             if (name) {
                 myName = name;
+                currentRoomCode = room;
+
                 document.getElementById('displayName').innerText = myName;
+                document.getElementById('displayRoom').innerText = currentRoomCode;
                 document.getElementById('loginSection').style.display = 'none';
                 document.getElementById('auctionSection').style.display = 'flex';
                 
                 if (isAuctioneer) {
-                    document.getElementById('adminTag').style.display = 'inline';
                     document.getElementById('auctioneerPanel').style.display = 'block';
                 }
 
-                socket.emit('registerUser', { name: myName, isAuctioneer: isAuctioneer });
+                // Attiva mantenimento dello schermo acceso
+                requestWakeLock();
+
+                socket.emit('joinRoom', { roomCode: currentRoomCode, name: myName, isAuctioneer: isAuctioneer });
             }
         }
 
@@ -275,15 +301,14 @@
             socket.emit('resetAuction');
         }
 
-        // Funzioni esclusive Banditore
         function undoLastTransaction() {
-            if (confirm("Vuoi davvero annullare l'ultimo acquisto e restituire i crediti spesi?")) {
+            if (confirm("Vuoi davvero annullare l'ultimo acquisto nella stanza?")) {
                 socket.emit('undoLastTransaction');
             }
         }
 
         function resetAllCredits() {
-            if (confirm("ATTENZIONE: Vuoi davvero riportare i crediti di TUTTI a 500?")) {
+            if (confirm("ATTENZIONE: Vuoi davvero riportare i crediti di TUTTI a 500 in questa stanza?")) {
                 socket.emit('resetAllCredits');
             }
         }
@@ -294,10 +319,10 @@
         }
 
         socket.on('stateUpdate', (state) => {
-            document.getElementById('timer').innerText = state.timer;
+            document.getElementById('timer').innerText = state.timer !== undefined ? state.timer : 5;
             document.getElementById('currentPlayer').innerText = state.currentPlayer || "In attesa...";
             document.getElementById('highestBidder').innerText = state.highestBidder || "-";
-            document.getElementById('currentBid').innerText = state.currentBid;
+            document.getElementById('currentBid').innerText = state.currentBid !== undefined ? state.currentBid : 0;
 
             if (state.userCredits && myName in state.userCredits) {
                 document.getElementById('myCredits').innerText = state.userCredits[myName];
@@ -308,7 +333,6 @@
             document.getElementById('bidBtn5').disabled = !isBiddingActive;
             document.getElementById('bidBtn10').disabled = !isBiddingActive;
 
-            // Aggiorna lista crediti se sono Banditore
             if (isAuctioneer && state.userCredits) {
                 const listDiv = document.getElementById('usersCreditsList');
                 listDiv.innerHTML = "";
