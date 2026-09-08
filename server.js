@@ -14,11 +14,10 @@ let auctionState = {
     currentBid: 0,
     timer: 5,
     isTimerRunning: false,
-    banditoreId: null,
-    readyUsers: [] // Elenco delle persone pronti
+    readyUsers: []
 };
 
-let connectedUsers = new Map(); // Mappa socket.id -> userName
+let connectedUsers = new Map();
 let timerInterval = null;
 
 function startTimer() {
@@ -60,40 +59,26 @@ function getStateWithReadyCount() {
     return {
         ...auctionState,
         readyCount: auctionState.readyUsers.length,
-        totalUsers: 10 // Fisso a 10 pallini
+        totalUsers: 10
     };
 }
 
 io.on('connection', (socket) => {
-    if (!auctionState.banditoreId) {
-        auctionState.banditoreId = socket.id;
-    }
-
     socket.emit('stateUpdate', getStateWithReadyCount());
-    socket.emit('roleAssign', { isBanditore: socket.id === auctionState.banditoreId });
 
     socket.on('registerUser', (userName) => {
         connectedUsers.set(socket.id, userName);
     });
 
-    socket.on('claimBanditore', () => {
-        auctionState.banditoreId = socket.id;
-        io.emit('roleAssign', { isBanditore: false });
-        socket.emit('roleAssign', { isBanditore: true });
-        io.emit('stateUpdate', getStateWithReadyCount());
-    });
-
     socket.on('callPlayer', (playerName) => {
-        if (socket.id === auctionState.banditoreId) {
-            clearInterval(timerInterval);
-            auctionState.currentPlayer = playerName;
-            auctionState.highestBidder = "";
-            auctionState.currentBid = 0;
-            auctionState.timer = 5;
-            auctionState.isTimerRunning = false;
-            auctionState.readyUsers = []; // Resetta i pallini
-            io.emit('stateUpdate', getStateWithReadyCount());
-        }
+        clearInterval(timerInterval);
+        auctionState.currentPlayer = playerName;
+        auctionState.highestBidder = "";
+        auctionState.currentBid = 0;
+        auctionState.timer = 5;
+        auctionState.isTimerRunning = false;
+        auctionState.readyUsers = [];
+        io.emit('stateUpdate', getStateWithReadyCount());
     });
 
     socket.on('setUserReady', () => {
@@ -102,7 +87,6 @@ io.on('connection', (socket) => {
                 auctionState.readyUsers.push(socket.id);
                 io.emit('stateUpdate', getStateWithReadyCount());
 
-                // Se tutti e 10 hanno cliccato Pronto, l'asta parte in automatico
                 if (auctionState.readyUsers.length >= 10) {
                     startTimer();
                 }
@@ -111,40 +95,34 @@ io.on('connection', (socket) => {
     });
 
     socket.on('forceStartAuction', () => {
-        if (socket.id === auctionState.banditoreId && auctionState.currentPlayer !== "") {
+        if (auctionState.currentPlayer !== "") {
             startTimer();
         }
     });
 
-    socket.on('placeBid', (data) => {
+    socket.on('placeIncrementBid', (data) => {
         if (auctionState.isTimerRunning && auctionState.timer > 0) {
-            if (data.bidAmount > auctionState.currentBid) {
-                auctionState.currentBid = data.bidAmount;
-                auctionState.highestBidder = data.userName;
-                startTimer(); // Reset timer a 5s
-            }
+            const increment = parseInt(data.increment) || 1;
+            auctionState.currentBid += increment;
+            auctionState.highestBidder = data.userName;
+            startTimer(); // Reset timer a 5s
         }
     });
 
     socket.on('resetAuction', () => {
-        if (socket.id === auctionState.banditoreId) {
-            clearInterval(timerInterval);
-            auctionState.currentPlayer = "";
-            auctionState.highestBidder = "";
-            auctionState.currentBid = 0;
-            auctionState.timer = 5;
-            auctionState.isTimerRunning = false;
-            auctionState.readyUsers = [];
-            io.emit('stateUpdate', getStateWithReadyCount());
-        }
+        clearInterval(timerInterval);
+        auctionState.currentPlayer = "";
+        auctionState.highestBidder = "";
+        auctionState.currentBid = 0;
+        auctionState.timer = 5;
+        auctionState.isTimerRunning = false;
+        auctionState.readyUsers = [];
+        io.emit('stateUpdate', getStateWithReadyCount());
     });
 
     socket.on('disconnect', () => {
         connectedUsers.delete(socket.id);
         auctionState.readyUsers = auctionState.readyUsers.filter(id => id !== socket.id);
-        if (socket.id === auctionState.banditoreId) {
-            auctionState.banditoreId = null;
-        }
         io.emit('stateUpdate', getStateWithReadyCount());
     });
 });
