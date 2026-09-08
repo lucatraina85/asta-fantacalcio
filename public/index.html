@@ -11,30 +11,26 @@
             padding: 0;
         }
         html, body {
-            height: 100%;
-            height: 100dvh;
-            overflow: hidden;
+            min-height: 100%;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f4f4f9;
         }
         body {
             display: flex;
-            align-items: center;
             justify-content: center;
             padding: 8px;
         }
         .container {
             width: 100%;
             max-width: 390px;
-            height: 100%;
             background: white;
             padding: 12px;
-            padding-bottom: 24px; /* Margine di sicurezza dal fondo schermo */
+            padding-bottom: 24px;
             border-radius: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 12px;
         }
         h1 {
             font-size: 26px;
@@ -48,7 +44,6 @@
             align-items: center;
             font-size: 17px;
             color: #333;
-            margin-bottom: 8px;
             background: #eef2f7;
             padding: 8px 12px;
             border-radius: 10px;
@@ -66,7 +61,7 @@
         }
         .call-panel input {
             flex: 1;
-            min-width: 0; /* Impedisce al campo di uscire dai bordi */
+            min-width: 0;
             padding: 10px 10px;
             font-size: 17px;
             border-radius: 8px;
@@ -89,6 +84,7 @@
             font-weight: 900;
             color: #e74c3c;
             line-height: 0.85;
+            text-align: center;
             margin: 2px 0;
         }
         .info-box {
@@ -120,17 +116,17 @@
         .btn-green { background-color: #2ecc71; }
         .btn-blue { background-color: #3498db; }
         .btn-red { background-color: #e74c3c; }
+        .btn-orange { background-color: #e67e22; }
 
         .bid-buttons {
             display: flex;
             gap: 8px;
-            margin-bottom: 6px;
         }
         .bid-btn {
             flex: 1;
             font-size: 32px;
             font-weight: 900;
-            padding: 22px 0; /* Pulsanti più alti per una pressione immediata */
+            padding: 22px 0;
             border-radius: 12px;
             background-color: #2ecc71;
             box-shadow: 0 4px 0 #27ae60;
@@ -138,6 +134,38 @@
         .bid-btn:active {
             box-shadow: none;
             transform: translateY(2px);
+        }
+
+        /* Sezione Banditore Extra */
+        .auctioneer-section {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 2px dashed #34495e;
+            background: #fdfefe;
+        }
+        .auctioneer-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #d35400;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .user-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .user-list-item input {
+            width: 70px;
+            padding: 6px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
         }
     </style>
 </head>
@@ -148,14 +176,20 @@
             <div id="loginSection" style="margin-top: 40px;">
                 <p style="margin-bottom: 12px; font-size: 18px; font-weight: 700;">Inserisci il tuo nome per entrare:</p>
                 <input type="text" id="userNameInput" placeholder="Il tuo nome" style="padding: 14px; font-size: 18px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc;">
+                
+                <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="isAuctioneer" style="width: 20px; height: 20px;">
+                    <label for="isAuctioneer" style="font-size: 16px; font-weight: 700; color: #d35400;">Sono il Banditore (Pannello Admin)</label>
+                </div>
+
                 <button class="btn-green" onclick="login()" style="width: 100%; font-size: 20px; padding: 14px;">Entra</button>
             </div>
         </div>
 
-        <div id="auctionSection" style="display: none; height: 100%; flex-direction: column; justify-content: space-between;">
+        <div id="auctionSection" style="display: none; flex-direction: column; gap: 12px;">
             <div>
                 <div class="header-bar">
-                    <span>Utente: <b id="displayName"></b></span>
+                    <span>Utente: <b id="displayName"></b> <span id="adminTag" style="color:#d35400; font-size:12px; display:none;">(Banditore)</span></span>
                     <span>Crediti: <span class="credits-badge" id="myCredits">500</span></span>
                 </div>
                 <div class="call-panel">
@@ -179,6 +213,24 @@
                 <button class="bid-btn" onclick="placeIncrementBid(5)" id="bidBtn5" disabled>+5</button>
                 <button class="bid-btn" onclick="placeIncrementBid(10)" id="bidBtn10" disabled>+10</button>
             </div>
+
+            <!-- CONTROLLI BANDITORE (Visibili solo se loggato come Banditore scorrendo la pagina) -->
+            <div id="auctioneerPanel" class="auctioneer-section" style="display: none;">
+                <div class="auctioneer-title">👑 Pannello Gestione Banditore</div>
+                
+                <button class="btn-orange" onclick="undoLastTransaction()" style="width: 100%; margin-bottom: 12px; font-size: 16px;">
+                    ↩️ Annulla Ultimo Acquisto
+                </button>
+
+                <p style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">Crediti Partecipanti:</p>
+                <div id="usersCreditsList" style="margin-bottom: 12px;">
+                    <!-- Lista dinamica utenti e crediti -->
+                </div>
+
+                <button class="btn-red" onclick="resetAllCredits()" style="width: 100%; font-size: 15px;">
+                    ⚠️ Reset Crediti TUTTI a 500
+                </button>
+            </div>
         </div>
     </div>
 
@@ -186,22 +238,31 @@
     <script>
         const socket = io();
         let myName = "";
+        let isAuctioneer = false;
 
         function login() {
             const name = document.getElementById('userNameInput').value.trim();
+            isAuctioneer = document.getElementById('isAuctioneer').checked;
+
             if (name) {
                 myName = name;
                 document.getElementById('displayName').innerText = myName;
                 document.getElementById('loginSection').style.display = 'none';
                 document.getElementById('auctionSection').style.display = 'flex';
-                socket.emit('registerUser', myName);
+                
+                if (isAuctioneer) {
+                    document.getElementById('adminTag').style.display = 'inline';
+                    document.getElementById('auctioneerPanel').style.display = 'block';
+                }
+
+                socket.emit('registerUser', { name: myName, isAuctioneer: isAuctioneer });
             }
         }
 
         function callPlayer() {
             const player = document.getElementById('playerInput').value.trim();
             if (player) {
-                socket.emit('callPlayer', player);
+                socket.emit('callPlayer', { playerName: player, userName: myName });
                 document.getElementById('playerInput').value = "";
             }
         }
@@ -212,6 +273,24 @@
 
         function resetAuction() {
             socket.emit('resetAuction');
+        }
+
+        // Funzioni esclusive Banditore
+        function undoLastTransaction() {
+            if (confirm("Vuoi davvero annullare l'ultimo acquisto e restituire i crediti spesi?")) {
+                socket.emit('undoLastTransaction');
+            }
+        }
+
+        function resetAllCredits() {
+            if (confirm("ATTENZIONE: Vuoi davvero riportare i crediti di TUTTI a 500?")) {
+                socket.emit('resetAllCredits');
+            }
+        }
+
+        function updateCredits(userName) {
+            const inputVal = document.getElementById(`cred_${userName}`).value;
+            socket.emit('updateUserCredits', { userName: userName, newCredits: inputVal });
         }
 
         socket.on('stateUpdate', (state) => {
@@ -228,6 +307,23 @@
             document.getElementById('bidBtn1').disabled = !isBiddingActive;
             document.getElementById('bidBtn5').disabled = !isBiddingActive;
             document.getElementById('bidBtn10').disabled = !isBiddingActive;
+
+            // Aggiorna lista crediti se sono Banditore
+            if (isAuctioneer && state.userCredits) {
+                const listDiv = document.getElementById('usersCreditsList');
+                listDiv.innerHTML = "";
+                for (let [user, cred] of Object.entries(state.userCredits)) {
+                    listDiv.innerHTML += `
+                        <div class="user-list-item">
+                            <span>${user}</span>
+                            <div>
+                                <input type="number" id="cred_${user}" value="${cred}">
+                                <button class="btn-blue" style="padding: 4px 8px; font-size: 14px;" onclick="updateCredits('${user}')">Salva</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
         });
 
         socket.on('auctionEnded', (data) => {
@@ -240,6 +336,10 @@
             if (data.userCredits && myName in data.userCredits) {
                 document.getElementById('myCredits').innerText = data.userCredits[myName];
             }
+        });
+
+        socket.on('transactionUndone', (undoneData) => {
+            alert(`↩️ ANNULLATO:\nRestituiti ${undoneData.price} crediti a ${undoneData.winner} per il calciatore ${undoneData.player}.`);
         });
 
         socket.on('errorMsg', (msg) => {
