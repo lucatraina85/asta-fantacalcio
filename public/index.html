@@ -1,59 +1,128 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asta Fantacalcio Super Semplice</title>
+    <title>Asta Fantacalcio</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 15px; background: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        input, button { padding: 12px; font-size: 16px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; }
-        button:disabled { background-color: #cccccc; }
-        .btn-bid { background-color: #28a745; font-weight: bold; width: 28%; }
-        .btn-close { background-color: #dc3545; width: 100%; font-weight: bold; }
-        .timer { font-size: 40px; font-weight: bold; color: #ff4757; }
-        .bid-info { font-size: 24px; font-weight: bold; margin: 15px 0; }
-        .hidden { display: none; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .timer {
+            font-size: 48px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 15px 0;
+        }
+        .info-box {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .banditore-panel {
+            background: #eef2f7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        /* Stili per i 10 pallini di stato */
+        .dots-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        .dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #e74c3c; /* Rosso default */
+            transition: background-color 0.3s;
+        }
+        .dot.green {
+            background-color: #2ecc71; /* Verde se pronto */
+        }
+        .ready-btn {
+            background-color: #f39c12;
+            color: white;
+            font-size: 18px;
+            padding: 12px 20px;
+            width: 80%;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>Asta Fantacalcio</h1>
 
-    <div id="login-screen" class="card">
-        <h2>Inserisci il tuo Nome</h2>
-        <input type="text" id="username-input" placeholder="Es. Marco">
-        <button onclick="login()">Entra</button>
-    </div>
-
-    <div id="auction-screen" class="card hidden">
-        <h3 id="welcome-msg"></h3>
-        <p id="banditore-badge" style="color: #d9534f; font-weight: bold;"></p>
-
-        <div id="call-section">
-            <h4>Chiama un Calciatore</h4>
-            <input type="text" id="player-input" placeholder="Nome Calciatore">
-            <button onclick="startAuction()">Inizia Asta (1 cr)</button>
+        <div id="loginSection">
+            <p>Inserisci il tuo nome per entrare:</p>
+            <input type="text" id="userNameInput" placeholder="Il tuo nome">
+            <button onclick="login()">Entra</button>
         </div>
 
-        <hr>
+        <div id="auctionSection" style="display: none;">
+            <p>Benvenuto, <b id="displayName"></b>!</p>
+            <button onclick="claimBanditoreRole()" style="background-color: #3498db; font-size: 12px;">Prendi Ruolo Banditore</button>
+            <hr>
 
-        <div id="active-auction" class="hidden">
-            <h1 id="player-name" style="color: #333;">---</h1>
+            <div id="banditoreControls" class="banditore-panel" style="display: none;">
+                <h3>Pannello Banditore</h3>
+                <input type="text" id="playerInput" placeholder="Nome Giocatore">
+                <button onclick="callPlayer()">Chiama Giocatore</button>
+                <button onclick="forceStartAuction()" style="background-color: #f39c12;">Forza Avvio Timer</button>
+                <button onclick="resetAuction()" style="background-color: #e74c3c;">Annulla</button>
+            </div>
+
+            <div class="info-box">Giocatore: <b id="currentPlayer">In attesa...</b></div>
+
+            <!-- 10 Pallini di conferma -->
+            <p style="font-size: 14px; margin-bottom: 5px;">Conferme Partecipanti:</p>
+            <div class="dots-container" id="dotsContainer">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+
+            <button id="readyButton" class="ready-btn" onclick="sendReady()" disabled>👍 SONO PRONTO!</button>
+
             <div class="timer" id="timer">5</div>
-            
-            <div class="bid-info">
-                Offerta: <span id="current-bid">0</span> cr<br>
-                Miglior offerente: <span id="highest-bidder" style="color: #007bff;">-</span>
-            </div>
+            <div class="info-box">Offerta Massima: <b id="currentBid">0</b> crediti</div>
+            <div class="info-box">Miglior Offerente: <b id="highestBidder">-</b></div>
 
-            <div>
-                <button class="btn-bid" onclick="bid(1)">+1</button>
-                <button class="btn-bid" onclick="bid(5)">+5</button>
-                <button class="btn-bid" onclick="bid(10)">+10</button>
-            </div>
-
-            <div id="banditore-controls" class="hidden" style="margin-top: 20px;">
-                <button class="btn-close" onclick="closeAuction()">🔨 AGGIUDICATO!</button>
+            <div style="margin-top: 20px;">
+                <input type="number" id="bidInput" placeholder="Crediti" min="1">
+                <button id="bidButton" onclick="placeBid()">Rilancia</button>
             </div>
         </div>
     </div>
@@ -63,69 +132,101 @@
         const socket = io();
         let myName = "";
         let isBanditore = false;
+        let isUserReady = false;
 
         function login() {
-            const input = document.getElementById('username-input').value.trim();
-            if (!input) return alert("Inserisci un nome valido");
-            myName = input;
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('auction-screen').classList.remove('hidden');
-            document.getElementById('welcome-msg').innerText = "Partecipante: " + myName;
-        }
-
-        function startAuction() {
-            const playerName = document.getElementById('player-input').value.trim();
-            if (!playerName) return alert("Inserisci il nome di un calciatore");
-            socket.emit('startAuction', { playerName, userName: myName });
-            document.getElementById('player-input').value = "";
-        }
-
-        function bid(increment) {
-            socket.emit('placeBid', { increment, userName: myName });
-        }
-
-        function closeAuction() {
-            socket.emit('closeAuction');
-        }
-
-        socket.on('init', (data) => {
-            isBanditore = data.isBanditore;
-            if (isBanditore) {
-                document.getElementById('banditore-badge').innerText = "👑 Sei il Banditore dell'asta";
+            const name = document.getElementById('userNameInput').value.trim();
+            if (name) {
+                myName = name;
+                document.getElementById('displayName').innerText = myName;
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('auctionSection').style.display = 'block';
+                socket.emit('registerUser', myName);
             }
-            updateUI(data.state);
+        }
+
+        function claimBanditoreRole() {
+            socket.emit('claimBanditore');
+        }
+
+        function callPlayer() {
+            const player = document.getElementById('playerInput').value.trim();
+            if (player) {
+                socket.emit('callPlayer', player);
+                document.getElementById('playerInput').value = "";
+            }
+        }
+
+        function forceStartAuction() {
+            socket.emit('forceStartAuction');
+        }
+
+        function sendReady() {
+            socket.emit('setUserReady');
+            isUserReady = true;
+            document.getElementById('readyButton').disabled = true;
+        }
+
+        function placeBid() {
+            const currentBidVal = parseInt(document.getElementById('currentBid').innerText) || 0;
+            const bidInput = document.getElementById('bidInput');
+            const bidAmount = parseInt(bidInput.value);
+
+            if (bidAmount && bidAmount > currentBidVal) {
+                socket.emit('placeBid', { userName: myName, bidAmount: bidAmount });
+                bidInput.value = "";
+            } else {
+                alert("L'offerta deve essere superiore all'offerta attuale!");
+            }
+        }
+
+        function resetAuction() {
+            socket.emit('resetAuction');
+        }
+
+        socket.on('roleAssign', (data) => {
+            isBanditore = data.isBanditore;
+            document.getElementById('banditoreControls').style.display = isBanditore ? 'block' : 'none';
         });
 
         socket.on('stateUpdate', (state) => {
-            updateUI(state);
-        });
+            document.getElementById('timer').innerText = state.timer;
+            document.getElementById('currentPlayer').innerText = state.currentPlayer || "In attesa...";
+            document.getElementById('highestBidder').innerText = state.highestBidder || "-";
+            document.getElementById('currentBid').innerText = state.currentBid;
 
-        socket.on('timerTick', (time) => {
-            document.getElementById('timer').innerText = time;
-        });
-
-        socket.on('auctionClosed', (data) => {
-            alert(`🎉 AGGIUDICATO!\n\n${data.player} a ${data.winner} per${data.price} crediti!`);
-        });
-
-        function updateUI(state) {
-            if (state.currentPlayer) {
-                document.getElementById('call-section').classList.add('hidden');
-                document.getElementById('active-auction').classList.remove('hidden');
-                
-                document.getElementById('player-name').innerText = state.currentPlayer;
-                document.getElementById('current-bid').innerText = state.currentBid;
-                document.getElementById('highest-bidder').innerText = state.highestBidder;
-                document.getElementById('timer').innerText = state.timer;
-
-                if (isBanditore) {
-                    document.getElementById('banditore-controls').classList.remove('hidden');
+            // Aggiorna i 10 pallini
+            const dots = document.querySelectorAll('.dot');
+            dots.forEach((dot, index) => {
+                if (index < state.readyCount) {
+                    dot.classList.add('green');
+                } else {
+                    dot.classList.remove('green');
                 }
+            });
+
+            // Gestione pulsante PRONTO
+            const readyBtn = document.getElementById('readyButton');
+            if (state.currentPlayer !== "" && !state.isTimerRunning) {
+                readyBtn.disabled = isUserReady;
             } else {
-                document.getElementById('call-section').classList.remove('hidden');
-                document.getElementById('active-auction').classList.add('hidden');
+                readyBtn.disabled = true;
+                if (state.currentPlayer === "") isUserReady = false; // reset ad asta pulita
             }
-        }
+
+            // Pulsante Rilancia attivo solo quando il timer scorre
+            const bidButton = document.getElementById('bidButton');
+            bidButton.disabled = !state.isTimerRunning || state.timer <= 0;
+        });
+
+        socket.on('auctionEnded', (data) => {
+            isUserReady = false;
+            if (data.winner !== "Nessuno") {
+                alert(`🎉 GIOCATORE AGGIUDICATO!\n\n${data.player} è stato acquistato da ${data.winner} per ${data.price} crediti!`);
+            } else {
+                alert(`❌ Asta terminata per ${data.player}: nessun offerente.`);
+            }
+        });
     </script>
 </body>
 </html>
