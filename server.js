@@ -16,9 +16,8 @@ let auctionState = {
     isTimerRunning: false
 };
 
-// Tracciamento dei crediti per ciascun utente (Nome Utente -> Crediti)
 let userCredits = new Map();
-let connectedUsers = new Map(); // socket.id -> userName
+let connectedUsers = new Map();
 let timerInterval = null;
 
 function startTimer() {
@@ -38,7 +37,6 @@ function startTimer() {
             const price = auctionState.currentBid;
             const player = auctionState.currentPlayer;
 
-            // Scaliamo i crediti solo a chi ha vinto l'asta
             if (winner && userCredits.has(winner)) {
                 const currentBalance = userCredits.get(winner);
                 const newBalance = Math.max(0, currentBalance - price);
@@ -52,7 +50,6 @@ function startTimer() {
                 userCredits: Object.fromEntries(userCredits)
             });
 
-            // Resetta per il prossimo calciatore
             auctionState.currentPlayer = "";
             auctionState.highestBidder = "";
             auctionState.currentBid = 0;
