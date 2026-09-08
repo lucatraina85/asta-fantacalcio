@@ -8,102 +8,125 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-let auctionState = {
-    currentPlayer: "",
-    highestBidder: "",
-    currentBid: 0,
-    timer: 5,
-    isTimerRunning: false
-};
+// Struttura dati per gestire più stanze in contemporanea
+// rooms = { "CodiceStanza": { auctionState, userCredits, lastTransaction, timerInterval } }
+let rooms = {};
 
-let userCredits = new Map();
-let connectedUsers = new Map();
-let lastAuctionTransaction = null; // Memorizza l'ultimo acquisto per permettere l'annullamento
-let timerInterval = null;
+function getOrCreateRoom(roomCode) {
+    const code = roomCode.trim().toUpperCase();
+    if (!rooms[code]) {
+        rooms[code] = {
+            auctionState: {
+                currentPlayer: "",
+                highestBidder: "",
+                currentBid: 0,
+                timer: 5,
+                isTimerRunning: false
+            },
+            userCredits: new Map(),
+            lastTransaction: null,
+            timerInterval: null
+        };
+    }
+    return rooms[code];
+}
 
-function startTimer() {
-    clearInterval(timerInterval);
-    auctionState.timer = 5;
-    auctionState.isTimerRunning = true;
-    io.emit('stateUpdate', getStateData());
+function startTimer(roomCode) {
+    const room = rooms[roomCode];
+    if (!room) return;
 
-    timerInterval = setInterval(() => {
-        auctionState.timer--;
+    clearInterval(room.timerInterval);
+    room.auctionState.timer = 5;
+    room.auctionState.isTimerRunning = true;
+    io.to(roomCode).emit('stateUpdate', getStateData(roomCode));
 
-        if (auctionState.timer <= 0) {
-            clearInterval(timerInterval);
-            auctionState.isTimerRunning = false;
+    room.timerInterval = setInterval(() => {
+        room.auctionState.timer--;
 
-            const winner = auctionState.highestBidder;
-            const price = auctionState.currentBid;
-            const player = auctionState.currentPlayer;
+        if (room.auctionState.timer <= 0) {
+            clearInterval(room.timerInterval);
+            room.auctionState.isTimerRunning = false;
 
-            if (winner && userCredits.has(winner)) {
-                const currentBalance = userCredits.get(winner);
+            const winner = room.auctionState.highestBidder;
+            const price = room.auctionState.currentBid;
+            const player = room.auctionState.currentPlayer;
+
+            if (winner && room.userCredits.has(winner)) {
+                const currentBalance = room.userCredits.get(winner);
                 const newBalance = Math.max(0, currentBalance - price);
-                userCredits.set(winner, newBalance);
+                room.userCredits.set(winner, newBalance);
 
-                // Salviamo l'ultima transazione per eventuale annullamento
-                lastAuctionTransaction = {
+                room.lastTransaction = {
                     winner: winner,
                     price: price,
                     player: player
                 };
             } else {
-                lastAuctionTransaction = null;
+                room.lastTransaction = null;
             }
 
-            io.emit('auctionEnded', {
+            io.to(roomCode).emit('auctionEnded', {
                 player: player,
                 winner: winner || "Nessuno",
                 price: price,
-                userCredits: Object.fromEntries(userCredits),
-                lastTransaction: lastAuctionTransaction
+                userCredits: Object.fromEntries(room.userCredits),
+                lastTransaction: room.lastTransaction
             });
 
-            auctionState.currentPlayer = "";
-            auctionState.highestBidder = "";
-            auctionState.currentBid = 0;
-            auctionState.timer = 5;
+            room.auctionState.currentPlayer = "";
+            room.auctionState.highestBidder = "";
+            room.auctionState.currentBid = 0;
+            room.auctionState.timer = 5;
         }
 
-        io.emit('stateUpdate', getStateData());
+        io.to(roomCode).emit('stateUpdate', getStateData(roomCode));
     }, 1000);
 }
 
-function getStateData() {
+function getStateData(roomCode) {
+    const room = rooms[roomCode];
+    if (!room) return {};
     return {
-        ...auctionState,
-        userCredits: Object.fromEntries(userCredits),
-        lastTransaction: lastAuctionTransaction
+        ...room.auctionState,
+        userCredits: Object.fromEntries(room.userCredits),
+        lastTransaction: room.lastTransaction
     };
 }
 
 io.on('connection', (socket) => {
-    socket.emit('stateUpdate', getStateData());
+    let currentRoom = null;
+    let currentUser = null;
 
-    socket.on('registerUser', (data) => {
-        const userName = typeof data === 'object' ? data.name : data;
-        connectedUsers.set(socket.id, userName);
-        if (!userCredits.has(userName)) {
-            userCredits.set(userName, 500);
+    socket.on('joinRoom', (data) => {
+        const roomCode = data.roomCode ? data.roomCode.trim().toUpperCase() : "GENERALE";
+        const userName = data.name ? data.name.trim() : "Anonimo";
+
+        currentRoom = roomCode;
+        currentUser = userName;
+
+        socket.join(roomCode);
+        const room = getOrCreateRoom(roomCode);
+
+        if (!room.userCredits.has(userName)) {
+            room.userCredits.set(userName, 500);
         }
-        io.emit('stateUpdate', getStateData());
+
+        io.to(roomCode).emit('stateUpdate', getStateData(roomCode));
     });
 
-    // Chi chiama il giocatore fa automaticamente la prima offerta a 1 credito
     socket.on('callPlayer', (data) => {
-        const playerName = typeof data === 'object' ? data.playerName : data;
-        const callerName = typeof data === 'object' ? data.userName : connectedUsers.get(socket.id);
+        if (!currentRoom) return;
+        const room = rooms[currentRoom];
+        const playerName = data.playerName ? data.playerName.trim() : "";
+        const callerName = data.userName || currentUser;
 
-        if (playerName && playerName.trim() !== "") {
-            const userBalance = userCredits.get(callerName) || 0;
-            
+        if (playerName !== "" && room) {
+            const userBalance = room.userCredits.get(callerName) || 0;
             if (userBalance >= 1) {
-                auctionState.currentPlayer = playerName.trim();
-                auctionState.highestBidder = callerName;
-                auctionState.currentBid = 1; // Offerta automatica a +1
-                startTimer();
+                room.auctionState.currentPlayer = playerName;
+                room.auctionState.highestBidder = callerName;
+                room.auctionState.currentBid = 1;
+                startTimer(currentRoom);
             } else {
                 socket.emit('errorMsg', 'Non hai abbastanza crediti per chiamare un giocatore!');
             }
@@ -111,15 +134,18 @@ io.on('connection', (socket) => {
     });
 
     socket.on('placeIncrementBid', (data) => {
-        if (auctionState.isTimerRunning && auctionState.timer > 0) {
+        if (!currentRoom) return;
+        const room = rooms[currentRoom];
+
+        if (room && room.auctionState.isTimerRunning && room.auctionState.timer > 0) {
             const increment = parseInt(data.increment) || 1;
-            const newBid = auctionState.currentBid + increment;
-            const userBalance = userCredits.get(data.userName) || 0;
+            const newBid = room.auctionState.currentBid + increment;
+            const userBalance = room.userCredits.get(data.userName) || 0;
 
             if (userBalance >= newBid) {
-                auctionState.currentBid = newBid;
-                auctionState.highestBidder = data.userName;
-                startTimer();
+                room.auctionState.currentBid = newBid;
+                room.auctionState.highestBidder = data.userName;
+                startTimer(currentRoom);
             } else {
                 socket.emit('errorMsg', 'Crediti insufficienti per questa offerta!');
             }
@@ -127,54 +153,57 @@ io.on('connection', (socket) => {
     });
 
     socket.on('resetAuction', () => {
-        clearInterval(timerInterval);
-        auctionState.currentPlayer = "";
-        auctionState.highestBidder = "";
-        auctionState.currentBid = 0;
-        auctionState.timer = 5;
-        auctionState.isTimerRunning = false;
-        io.emit('stateUpdate', getStateData());
+        if (!currentRoom) return;
+        const room = rooms[currentRoom];
+        if (room) {
+            clearInterval(room.timerInterval);
+            room.auctionState.currentPlayer = "";
+            room.auctionState.highestBidder = "";
+            room.auctionState.currentBid = 0;
+            room.auctionState.timer = 5;
+            room.auctionState.isTimerRunning = false;
+            io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
+        }
     });
 
-    // --- FUNZIONALITÀ BANDITORE ---
-
-    // Modifica manuale dei crediti di un utente
+    // --- BANDITORE ---
     socket.on('updateUserCredits', (data) => {
-        if (userCredits.has(data.userName)) {
-            userCredits.set(data.userName, parseInt(data.newCredits) || 0);
-            io.emit('stateUpdate', getStateData());
+        if (!currentRoom) return;
+        const room = rooms[currentRoom];
+        if (room && room.userCredits.has(data.userName)) {
+            room.userCredits.set(data.userName, parseInt(data.newCredits) || 0);
+            io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         }
     });
 
-    // Reset crediti di TUTTI a 500
     socket.on('resetAllCredits', () => {
-        for (let user of userCredits.keys()) {
-            userCredits.set(user, 500);
+        if (!currentRoom) return;
+        const room = rooms[currentRoom];
+        if (room) {
+            for (let user of room.userCredits.keys()) {
+                room.userCredits.set(user, 500);
+            }
+            room.lastTransaction = null;
+            io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         }
-        lastAuctionTransaction = null;
-        io.emit('stateUpdate', getStateData());
     });
 
-    // Annulla l'ultimo acquisto effettuato
     socket.on('undoLastTransaction', () => {
-        if (lastAuctionTransaction && userCredits.has(lastAuctionTransaction.winner)) {
-            const currentBalance = userCredits.get(lastAuctionTransaction.winner);
-            const restoredBalance = currentBalance + lastAuctionTransaction.price;
-            userCredits.set(lastAuctionTransaction.winner, restoredBalance);
-            
-            const undone = lastAuctionTransaction;
-            lastAuctionTransaction = null;
-            
-            io.emit('transactionUndone', undone);
-            io.emit('stateUpdate', getStateData());
+        if (!currentRoom) return;
+        const room = rooms[currentRoom];
+        if (room && room.lastTransaction && room.userCredits.has(room.lastTransaction.winner)) {
+            const currentBalance = room.userCredits.get(room.lastTransaction.winner);
+            const restoredBalance = currentBalance + room.lastTransaction.price;
+            room.userCredits.set(room.lastTransaction.winner, restoredBalance);
+
+            const undone = room.lastTransaction;
+            room.lastTransaction = null;
+
+            io.to(currentRoom).emit('transactionUndone', undone);
+            io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         } else {
             socket.emit('errorMsg', 'Nessuna transazione recente da annullare!');
         }
-    });
-
-    socket.on('disconnect', () => {
-        connectedUsers.delete(socket.id);
-        io.emit('stateUpdate', getStateData());
     });
 });
 
