@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Asta Fantacalcio</title>
     <style>
-        * {
+        *, *:before, *:after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
@@ -21,60 +21,63 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 6px;
+            padding: 8px;
         }
         .container {
             width: 100%;
-            max-width: 420px;
+            max-width: 390px;
             height: 100%;
             background: white;
-            padding: 12px 14px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            padding: 12px;
+            padding-bottom: 24px; /* Margine di sicurezza dal fondo schermo */
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
         h1 {
-            font-size: 24px;
+            font-size: 26px;
             color: #2c3e50;
-            font-weight: 800;
-            margin-bottom: 2px;
+            font-weight: 900;
+            margin-bottom: 4px;
         }
         .header-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 16px;
-            color: #444;
-            margin-bottom: 6px;
+            font-size: 17px;
+            color: #333;
+            margin-bottom: 8px;
             background: #eef2f7;
             padding: 8px 12px;
-            border-radius: 8px;
-            font-weight: 600;
+            border-radius: 10px;
+            font-weight: 700;
         }
         .credits-badge {
-            font-weight: 800;
+            font-weight: 900;
             color: #27ae60;
-            font-size: 20px;
+            font-size: 22px;
         }
         .call-panel {
             display: flex;
             gap: 6px;
+            width: 100%;
         }
         .call-panel input {
             flex: 1;
-            padding: 10px 12px;
-            font-size: 18px;
+            min-width: 0; /* Impedisce al campo di uscire dai bordi */
+            padding: 10px 10px;
+            font-size: 17px;
             border-radius: 8px;
             border: 1px solid #ccc;
             outline: none;
         }
         .player-title {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 900;
             color: #1a252f;
-            min-height: 44px;
+            min-height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -82,30 +85,31 @@
             line-height: 1.1;
         }
         .timer {
-            font-size: 85px;
+            font-size: 90px;
             font-weight: 900;
             color: #e74c3c;
-            line-height: 0.9;
+            line-height: 0.85;
             margin: 2px 0;
         }
         .info-box {
-            font-size: 20px;
+            font-size: 22px;
             color: #222;
             background: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 10px;
             border: 1px solid #eee;
-            font-weight: 600;
+            font-weight: 700;
         }
         button {
-            padding: 10px 14px;
-            font-size: 16px;
+            padding: 10px 12px;
+            font-size: 17px;
             border-radius: 8px;
             border: none;
             cursor: pointer;
             font-weight: bold;
             color: white;
             transition: opacity 0.15s;
+            flex-shrink: 0;
         }
         button:active { opacity: 0.8; }
         button:disabled {
@@ -120,14 +124,14 @@
         .bid-buttons {
             display: flex;
             gap: 8px;
-            margin-bottom: 2px;
+            margin-bottom: 6px;
         }
         .bid-btn {
             flex: 1;
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 900;
-            padding: 18px 0;
-            border-radius: 10px;
+            padding: 22px 0; /* Pulsanti più alti per una pressione immediata */
+            border-radius: 12px;
             background-color: #2ecc71;
             box-shadow: 0 4px 0 #27ae60;
         }
@@ -142,7 +146,7 @@
         <div>
             <h1>Asta Fantacalcio</h1>
             <div id="loginSection" style="margin-top: 40px;">
-                <p style="margin-bottom: 12px; font-size: 18px; font-weight: 600;">Inserisci il tuo nome per entrare:</p>
+                <p style="margin-bottom: 12px; font-size: 18px; font-weight: 700;">Inserisci il tuo nome per entrare:</p>
                 <input type="text" id="userNameInput" placeholder="Il tuo nome" style="padding: 14px; font-size: 18px; width: 100%; margin-bottom: 12px; border-radius: 8px; border: 1px solid #ccc;">
                 <button class="btn-green" onclick="login()" style="width: 100%; font-size: 20px; padding: 14px;">Entra</button>
             </div>
@@ -156,8 +160,8 @@
                 </div>
                 <div class="call-panel">
                     <input type="text" id="playerInput" placeholder="Nome Giocatore">
-                    <button class="btn-blue" onclick="callPlayer()" style="font-size: 18px;">Chiama</button>
-                    <button class="btn-red" onclick="resetAuction()" style="font-size: 18px;">X</button>
+                    <button class="btn-blue" onclick="callPlayer()" style="font-size: 17px;">Chiama</button>
+                    <button class="btn-red" onclick="resetAuction()" style="font-size: 17px; padding: 10px 14px;">X</button>
                 </div>
             </div>
 
@@ -166,7 +170,7 @@
             <div class="timer" id="timer">5</div>
 
             <div class="info-box">
-                Offerta: <b id="currentBid" style="font-size: 30px; color: #2c3e50;">0</b> cr<br>
+                Offerta: <b id="currentBid" style="font-size: 32px; color: #2c3e50;">0</b> cr<br>
                 Offerente: <b id="highestBidder" style="color: #27ae60;">-</b>
             </div>
 
