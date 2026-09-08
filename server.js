@@ -12,7 +12,7 @@ let auctionState = {
     currentPlayer: "",
     highestBidder: "",
     currentBid: 0,
-    timer: 10,
+    timer: 5,
     isTimerRunning: false,
     banditoreId: null
 };
@@ -24,14 +24,14 @@ function resetAuction() {
     auctionState.currentPlayer = "";
     auctionState.highestBidder = "";
     auctionState.currentBid = 0;
-    auctionState.timer = 10;
+    auctionState.timer = 5;
     auctionState.isTimerRunning = false;
     io.emit('stateUpdate', auctionState);
 }
 
 function startTimer() {
     clearInterval(timerInterval);
-    auctionState.timer = 10;
+    auctionState.timer = 5;
     auctionState.isTimerRunning = true;
     io.emit('stateUpdate', auctionState);
 
