@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -232,6 +231,10 @@
                     ⚠️ Reset Crediti TUTTI a 500
                 </button>
             </div>
+
+            <button onclick="logout()" style="background-color: #7f8c8d; width: 100%; font-size: 14px; padding: 8px; margin-top: 10px;">
+                🚪 Esci dalla Stanza
+            </button>
         </div>
     </div>
 
@@ -243,7 +246,7 @@
         let isAuctioneer = false;
         let wakeLock = null;
 
-        // --- GESTIONE WAKE LOCK (SCHERMO SEMPRE ACCESO) ---
+        // GESTIONE SCHERMO SEMPRE ACCESO
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
@@ -260,7 +263,21 @@
             }
         });
 
-        function login() {
+        // RE-LOGIN AUTOMATICO ALL'APERTURA/REFRESH
+        window.onload = () => {
+            const savedRoom = localStorage.getItem('asta_room');
+            const savedName = localStorage.getItem('asta_name');
+            const savedAuctioneer = localStorage.getItem('asta_auctioneer') === 'true';
+
+            if (savedRoom && savedName) {
+                document.getElementById('roomInput').value = savedRoom;
+                document.getElementById('userNameInput').value = savedName;
+                document.getElementById('isAuctioneer').checked = savedAuctioneer;
+                login(true);
+            }
+        };
+
+        function login(isAuto = false) {
             const room = document.getElementById('roomInput').value.trim().toUpperCase() || "GENERALE";
             const name = document.getElementById('userNameInput').value.trim();
             isAuctioneer = document.getElementById('isAuctioneer').checked;
@@ -268,6 +285,11 @@
             if (name) {
                 myName = name;
                 currentRoomCode = room;
+
+                // Salviamo i dati nel browser per sopravvivere ai refresh
+                localStorage.setItem('asta_room', currentRoomCode);
+                localStorage.setItem('asta_name', myName);
+                localStorage.setItem('asta_auctioneer', isAuctioneer);
 
                 document.getElementById('displayName').innerText = myName;
                 document.getElementById('displayRoom').innerText = currentRoomCode;
@@ -278,11 +300,15 @@
                     document.getElementById('auctioneerPanel').style.display = 'block';
                 }
 
-                // Attiva mantenimento dello schermo acceso
                 requestWakeLock();
 
                 socket.emit('joinRoom', { roomCode: currentRoomCode, name: myName, isAuctioneer: isAuctioneer });
             }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
         }
 
         function callPlayer() {
