@@ -13,18 +13,19 @@ let auctionState = {
     highestBidder: "",
     currentBid: 0,
     timer: 5,
-    isTimerRunning: false,
-    readyUsers: []
+    isTimerRunning: false
 };
 
-let connectedUsers = new Map();
+// Tracciamento dei crediti per ciascun utente (Nome Utente -> Crediti)
+let userCredits = new Map();
+let connectedUsers = new Map(); // socket.id -> userName
 let timerInterval = null;
 
 function startTimer() {
     clearInterval(timerInterval);
     auctionState.timer = 5;
     auctionState.isTimerRunning = true;
-    io.emit('stateUpdate', getStateWithReadyCount());
+    io.emit('stateUpdate', getStateData());
 
     timerInterval = setInterval(() => {
         auctionState.timer--;
@@ -33,14 +34,22 @@ function startTimer() {
             clearInterval(timerInterval);
             auctionState.isTimerRunning = false;
 
-            const winner = auctionState.highestBidder || "Nessuno";
+            const winner = auctionState.highestBidder;
             const price = auctionState.currentBid;
             const player = auctionState.currentPlayer;
 
+            // Scaliamo i crediti solo a chi ha vinto l'asta
+            if (winner && userCredits.has(winner)) {
+                const currentBalance = userCredits.get(winner);
+                const newBalance = Math.max(0, currentBalance - price);
+                userCredits.set(winner, newBalance);
+            }
+
             io.emit('auctionEnded', {
                 player: player,
-                winner: winner,
-                price: price
+                winner: winner || "Nessuno",
+                price: price,
+                userCredits: Object.fromEntries(userCredits)
             });
 
             // Resetta per il prossimo calciatore
@@ -48,54 +57,35 @@ function startTimer() {
             auctionState.highestBidder = "";
             auctionState.currentBid = 0;
             auctionState.timer = 5;
-            auctionState.readyUsers = [];
         }
 
-        io.emit('stateUpdate', getStateWithReadyCount());
+        io.emit('stateUpdate', getStateData());
     }, 1000);
 }
 
-function getStateWithReadyCount() {
+function getStateData() {
     return {
         ...auctionState,
-        readyCount: auctionState.readyUsers.length,
-        totalUsers: 10
+        userCredits: Object.fromEntries(userCredits)
     };
 }
 
 io.on('connection', (socket) => {
-    socket.emit('stateUpdate', getStateWithReadyCount());
+    socket.emit('stateUpdate', getStateData());
 
     socket.on('registerUser', (userName) => {
         connectedUsers.set(socket.id, userName);
+        if (!userCredits.has(userName)) {
+            userCredits.set(userName, 500);
+        }
+        io.emit('stateUpdate', getStateData());
     });
 
     socket.on('callPlayer', (playerName) => {
-        clearInterval(timerInterval);
-        auctionState.currentPlayer = playerName;
-        auctionState.highestBidder = "";
-        auctionState.currentBid = 0;
-        auctionState.timer = 5;
-        auctionState.isTimerRunning = false;
-        auctionState.readyUsers = [];
-        io.emit('stateUpdate', getStateWithReadyCount());
-    });
-
-    socket.on('setUserReady', () => {
-        if (!auctionState.isTimerRunning && auctionState.currentPlayer !== "") {
-            if (!auctionState.readyUsers.includes(socket.id)) {
-                auctionState.readyUsers.push(socket.id);
-                io.emit('stateUpdate', getStateWithReadyCount());
-
-                if (auctionState.readyUsers.length >= 10) {
-                    startTimer();
-                }
-            }
-        }
-    });
-
-    socket.on('forceStartAuction', () => {
-        if (auctionState.currentPlayer !== "") {
+        if (playerName.trim() !== "") {
+            auctionState.currentPlayer = playerName;
+            auctionState.highestBidder = "";
+            auctionState.currentBid = 0;
             startTimer();
         }
     });
@@ -103,9 +93,16 @@ io.on('connection', (socket) => {
     socket.on('placeIncrementBid', (data) => {
         if (auctionState.isTimerRunning && auctionState.timer > 0) {
             const increment = parseInt(data.increment) || 1;
-            auctionState.currentBid += increment;
-            auctionState.highestBidder = data.userName;
-            startTimer(); // Reset timer a 5s
+            const newBid = auctionState.currentBid + increment;
+            const userBalance = userCredits.get(data.userName) || 0;
+
+            if (userBalance >= newBid) {
+                auctionState.currentBid = newBid;
+                auctionState.highestBidder = data.userName;
+                startTimer();
+            } else {
+                socket.emit('errorMsg', 'Crediti insufficienti per questa offerta!');
+            }
         }
     });
 
@@ -116,14 +113,12 @@ io.on('connection', (socket) => {
         auctionState.currentBid = 0;
         auctionState.timer = 5;
         auctionState.isTimerRunning = false;
-        auctionState.readyUsers = [];
-        io.emit('stateUpdate', getStateWithReadyCount());
+        io.emit('stateUpdate', getStateData());
     });
 
     socket.on('disconnect', () => {
         connectedUsers.delete(socket.id);
-        auctionState.readyUsers = auctionState.readyUsers.filter(id => id !== socket.id);
-        io.emit('stateUpdate', getStateWithReadyCount());
+        io.emit('stateUpdate', getStateData());
     });
 });
 
