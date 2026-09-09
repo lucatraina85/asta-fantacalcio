@@ -136,11 +136,47 @@
             transform: translateY(2px);
         }
 
+        /* STILI PER LA ROSA E IL REGISTRO BANDITORE */
+        .section-box {
+            margin-top: 10px;
+            padding: 12px;
+            border-radius: 12px;
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .purchases-list {
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .purchase-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #edf2f7;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
         .auctioneer-section {
-            margin-top: 20px;
+            margin-top: 15px;
             padding-top: 16px;
-            border-top: 2px dashed #34495e;
-            background: #fdfefe;
+            border-top: 2px dashed #d35400;
+            background: #fffaf5;
         }
         .auctioneer-title {
             font-size: 20px;
@@ -153,15 +189,15 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 6px 0;
             border-bottom: 1px solid #eee;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
         }
         .user-list-item input {
-            width: 70px;
-            padding: 6px;
-            font-size: 16px;
+            width: 65px;
+            padding: 4px;
+            font-size: 15px;
             border: 1px solid #ccc;
             border-radius: 6px;
             text-align: center;
@@ -216,22 +252,43 @@
                 <button class="bid-btn" onclick="placeIncrementBid(10)" id="bidBtn10" disabled>+10</button>
             </div>
 
-            <!-- CONTROLLI BANDITORE -->
+            <!-- SEZIONE ROSA ALLENATORE -->
+            <div class="section-box">
+                <div class="section-title">
+                    <span>📋 La Mia Rosa</span>
+                    <span id="mySquadCount" style="font-size: 14px; color: #7f8c8d;">(0 giocatori)</span>
+                </div>
+                <div class="purchases-list" id="mySquadList">
+                    <p style="font-size: 13px; color: #95a5a6; text-align: center; padding: 8px;">Nessun giocatore acquistato.</p>
+                </div>
+            </div>
+
+            <!-- PANNELLO ESCLUSIVO BANDITORE -->
             <div id="auctioneerPanel" class="auctioneer-section" style="display: none;">
-                <div class="auctioneer-title">👑 Pannello Gestione Banditore</div>
+                <div class="auctioneer-title">👑 Gestione Banditore</div>
                 
-                <button class="btn-orange" onclick="undoLastTransaction()" style="width: 100%; margin-bottom: 12px; font-size: 16px;">
+                <button class="btn-orange" onclick="undoLastTransaction()" style="width: 100%; margin-bottom: 12px; font-size: 15px;">
                     ↩️ Annulla Ultimo Acquisto
                 </button>
 
-                <p style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">Crediti Partecipanti Stanza:</p>
+                <p style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">Gestione Crediti:</p>
                 <div id="usersCreditsList" style="margin-bottom: 12px;"></div>
 
-                <button class="btn-red" onclick="resetAllCredits()" style="width: 100%; font-size: 15px;">
-                    ⚠️ Reset Crediti TUTTI a 500
+                <!-- REGISTRO AGGIUDICAZIONI PER IL BANDITORE -->
+                <details style="margin-bottom: 12px; background: white; padding: 8px; border-radius: 8px; border: 1px solid #ddd;">
+                    <summary style="font-weight: 800; cursor: pointer; color: #d35400;">
+                        📜 Registro Aggiudicazioni Lega (<span id="allPurchasesCount">0</span>)
+                    </summary>
+                    <div class="purchases-list" id="allPurchasesList" style="margin-top: 8px; max-height: 200px;">
+                        <p style="font-size: 13px; color: #95a5a6; text-align: center;">Nessun acquisto registrato.</p>
+                    </div>
+                </details>
+
+                <button class="btn-red" onclick="resetAllCredits()" style="width: 100%; font-size: 14px;">
+                    ⚠️ Reset Totale Stanza (Crediti & Rose)
                 </button>
             </div>
-
+            
             <button onclick="logout()" style="background-color: #7f8c8d; width: 100%; font-size: 14px; padding: 8px; margin-top: 10px;">
                 🚪 Esci dalla Stanza
             </button>
@@ -246,7 +303,6 @@
         let isAuctioneer = false;
         let wakeLock = null;
 
-        // GESTIONE SCHERMO SEMPRE ACCESO
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
@@ -263,7 +319,6 @@
             }
         });
 
-        // RE-LOGIN AUTOMATICO ALL'APERTURA/REFRESH
         window.onload = () => {
             const savedRoom = localStorage.getItem('asta_room');
             const savedName = localStorage.getItem('asta_name');
@@ -286,7 +341,6 @@
                 myName = name;
                 currentRoomCode = room;
 
-                // Salviamo i dati nel browser per sopravvivere ai refresh
                 localStorage.setItem('asta_room', currentRoomCode);
                 localStorage.setItem('asta_name', myName);
                 localStorage.setItem('asta_auctioneer', isAuctioneer);
@@ -328,13 +382,13 @@
         }
 
         function undoLastTransaction() {
-            if (confirm("Vuoi davvero annullare l'ultimo acquisto nella stanza?")) {
+            if (confirm("Vuoi davvero annullare l'ultimo acquisto registrato?")) {
                 socket.emit('undoLastTransaction');
             }
         }
 
         function resetAllCredits() {
-            if (confirm("ATTENZIONE: Vuoi davvero riportare i crediti di TUTTI a 500 in questa stanza?")) {
+            if (confirm("ATTENZIONE: Ripristinare i crediti a 500 e CANCELLARE tutte le rose della stanza?")) {
                 socket.emit('resetAllCredits');
             }
         }
@@ -342,6 +396,43 @@
         function updateCredits(userName) {
             const inputVal = document.getElementById(`cred_${userName}`).value;
             socket.emit('updateUserCredits', { userName: userName, newCredits: inputVal });
+        }
+
+        function renderPurchases(purchases) {
+            const mySquadList = document.getElementById('mySquadList');
+            const mySquadCount = document.getElementById('mySquadCount');
+            const allPurchasesList = document.getElementById('allPurchasesList');
+            const allPurchasesCount = document.getElementById('allPurchasesCount');
+
+            const myPurchases = purchases.filter(p => p.winner === myName);
+            
+            // Render Rosa Personale
+            mySquadCount.innerText = `(${myPurchases.length} giocatori)`;
+            if (myPurchases.length === 0) {
+                mySquadList.innerHTML = `<p style="font-size: 13px; color: #95a5a6; text-align: center; padding: 8px;">Nessun giocatore acquistato.</p>`;
+            } else {
+                mySquadList.innerHTML = myPurchases.map(p => `
+                    <div class="purchase-item">
+                        <span><b>${p.player}</b></span>
+                        <span style="color: #27ae60; font-weight: 800;">${p.price} cr</span>
+                    </div>
+                `).join('');
+            }
+
+            // Render Registro Banditore
+            if (isAuctioneer) {
+                allPurchasesCount.innerText = purchases.length;
+                if (purchases.length === 0) {
+                    allPurchasesList.innerHTML = `<p style="font-size: 13px; color: #95a5a6; text-align: center;">Nessun acquisto registrato.</p>`;
+                } else {
+                    allPurchasesList.innerHTML = purchases.slice().reverse().map(p => `
+                        <div class="purchase-item">
+                            <span><b>${p.player}</b> → <i style="color:#3498db;">${p.winner}</i></span>
+                            <span style="color: #27ae60; font-weight: 800;">${p.price} cr</span>
+                        </div>
+                    `).join('');
+                }
+            }
         }
 
         socket.on('stateUpdate', (state) => {
@@ -359,6 +450,11 @@
             document.getElementById('bidBtn5').disabled = !isBiddingActive;
             document.getElementById('bidBtn10').disabled = !isBiddingActive;
 
+            // Aggiorna le liste dei giocatori
+            if (state.purchases) {
+                renderPurchases(state.purchases);
+            }
+
             if (isAuctioneer && state.userCredits) {
                 const listDiv = document.getElementById('usersCreditsList');
                 listDiv.innerHTML = "";
@@ -368,7 +464,7 @@
                             <span>${user}</span>
                             <div>
                                 <input type="number" id="cred_${user}" value="${cred}">
-                                <button class="btn-blue" style="padding: 4px 8px; font-size: 14px;" onclick="updateCredits('${user}')">Salva</button>
+                                <button class="btn-blue" style="padding: 4px 8px; font-size: 13px;" onclick="updateCredits('${user}')">Salva</button>
                             </div>
                         </div>
                     `;
@@ -385,6 +481,10 @@
 
             if (data.userCredits && myName in data.userCredits) {
                 document.getElementById('myCredits').innerText = data.userCredits[myName];
+            }
+
+            if (data.purchases) {
+                renderPurchases(data.purchases);
             }
         });
 
