@@ -11,8 +11,6 @@ const io = new Server(server);
 app.use(express.static('public'));
 
 const DB_FILE = path.join(__dirname, 'database.json');
-
-// Carica i dati dal file database.json all'avvio
 let rooms = {};
 
 function loadData() {
@@ -21,25 +19,21 @@ function loadData() {
             const rawData = fs.readFileSync(DB_FILE, 'utf8');
             const parsed = JSON.parse(rawData);
             
-            // Ricostruiamo i Map dei crediti per ciascuna stanza
             for (let code in parsed) {
                 rooms[code] = {
                     auctionState: parsed[code].auctionState,
                     userCredits: new Map(Object.entries(parsed[code].userCredits || {})),
-                    lastTransaction: parsed[code].lastTransaction,
+                    purchases: parsed[code].purchases || [],
                     timerInterval: null
                 };
-                // Assicuriamoci che il timer sia fermo al caricamento
                 rooms[code].auctionState.isTimerRunning = false;
             }
-            console.log('Dati caricati con successo da database.json');
         }
     } catch (err) {
-        console.error('Errore nel caricamento del database:', err);
+        console.error('Errore caricamento database:', err);
     }
 }
 
-// Salva lo stato delle stanze su file
 function saveData() {
     try {
         const toSave = {};
@@ -47,16 +41,15 @@ function saveData() {
             toSave[code] = {
                 auctionState: rooms[code].auctionState,
                 userCredits: Object.fromEntries(rooms[code].userCredits),
-                lastTransaction: rooms[code].lastTransaction
+                purchases: rooms[code].purchases || []
             };
         }
         fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), 'utf8');
     } catch (err) {
-        console.error('Errore durante il salvataggio su database.json:', err);
+        console.error('Errore salvataggio database:', err);
     }
 }
 
-// Carichiamo i dati subito
 loadData();
 
 function getOrCreateRoom(roomCode) {
@@ -71,7 +64,7 @@ function getOrCreateRoom(roomCode) {
                 isTimerRunning: false
             },
             userCredits: new Map(),
-            lastTransaction: null,
+            purchases: [],
             timerInterval: null
         };
         saveData();
@@ -104,23 +97,23 @@ function startTimer(roomCode) {
                 const newBalance = Math.max(0, currentBalance - price);
                 room.userCredits.set(winner, newBalance);
 
-                room.lastTransaction = {
+                if (!room.purchases) room.purchases = [];
+                room.purchases.push({
+                    player: player,
                     winner: winner,
                     price: price,
-                    player: player
-                };
-            } else {
-                room.lastTransaction = null;
+                    id: Date.now()
+                });
             }
 
-            saveData(); // Salviamo a fine asta
+            saveData();
 
             io.to(roomCode).emit('auctionEnded', {
                 player: player,
                 winner: winner || "Nessuno",
                 price: price,
                 userCredits: Object.fromEntries(room.userCredits),
-                lastTransaction: room.lastTransaction
+                purchases: room.purchases
             });
 
             room.auctionState.currentPlayer = "";
@@ -139,7 +132,7 @@ function getStateData(roomCode) {
     return {
         ...room.auctionState,
         userCredits: Object.fromEntries(room.userCredits),
-        lastTransaction: room.lastTransaction
+        purchases: room.purchases || []
     };
 }
 
@@ -157,7 +150,7 @@ io.on('connection', (socket) => {
         socket.join(roomCode);
         const room = getOrCreateRoom(roomCode);
 
-        if (!room.userCredits.has(userName)) {
+        if (userName !== "TABELLONE" && !room.userCredits.has(userName)) {
             room.userCredits.set(userName, 500);
             saveData();
         }
@@ -218,7 +211,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- BANDITORE ---
     socket.on('updateUserCredits', (data) => {
         if (!currentRoom) return;
         const room = rooms[currentRoom];
@@ -236,7 +228,7 @@ io.on('connection', (socket) => {
             for (let user of room.userCredits.keys()) {
                 room.userCredits.set(user, 500);
             }
-            room.lastTransaction = null;
+            room.purchases = [];
             saveData();
             io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         }
@@ -245,19 +237,17 @@ io.on('connection', (socket) => {
     socket.on('undoLastTransaction', () => {
         if (!currentRoom) return;
         const room = rooms[currentRoom];
-        if (room && room.lastTransaction && room.userCredits.has(room.lastTransaction.winner)) {
-            const currentBalance = room.userCredits.get(room.lastTransaction.winner);
-            const restoredBalance = currentBalance + room.lastTransaction.price;
-            room.userCredits.set(room.lastTransaction.winner, restoredBalance);
-
-            const undone = room.lastTransaction;
-            room.lastTransaction = null;
-
+        if (room && room.purchases && room.purchases.length > 0) {
+            const lastPurchase = room.purchases.pop();
+            if (room.userCredits.has(lastPurchase.winner)) {
+                const currentBalance = room.userCredits.get(lastPurchase.winner);
+                room.userCredits.set(lastPurchase.winner, currentBalance + lastPurchase.price);
+            }
             saveData();
-            io.to(currentRoom).emit('transactionUndone', undone);
+            io.to(currentRoom).emit('transactionUndone', lastPurchase);
             io.to(currentRoom).emit('stateUpdate', getStateData(currentRoom));
         } else {
-            socket.emit('errorMsg', 'Nessuna transazione recente da annullare!');
+            socket.emit('errorMsg', 'Nessun acquisto da annullare!');
         }
     });
 });
